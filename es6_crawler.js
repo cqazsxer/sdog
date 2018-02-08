@@ -1,18 +1,33 @@
 const puppeteer = require('puppeteer');
 const moment = require('moment');
-const { timeout, isAheadDays } = require('./tools/tools.js');
+const {
+  timeout,
+  isAheadDays,
+  error,
+  info,
+  warning
+} = require('./tools/tools.js');
 const R = require('ramda');
+const _ = require('lodash/fp');
 const fs = require('fs-extra');
+
 puppeteer.launch().then(async browser => {
   // 检测上次抓取的api列表的时间 大于7天的话 就重新抓取
+  const startTime = moment();
   let links = await fs
     .readFile('./data/es6-pdf/links.json')
-    .catch(() => console.error('api列表json不存在！, 正在抓取api列表...'));
+    .catch(() =>
+      console.log(warning('api列表json不存在！, 正在抓取api列表...'))
+    );
+  //
   if (links) {
     const { ctime } = await fs.statSync('./data/es6-pdf/links.json');
-    if (isAheadDays(ctime, 0)) {
-      console.log('超过7天未拉取api列表，正在重新拉取...');
+    if (isAheadDays(ctime, 7)) {
+      info('超过7天未拉取api列表，正在重新拉取...');
       links = undefined;
+    } else {
+      links = JSON.parse(links);
+      info(`从文件获取的api列表长度：${links.length}...`);
     }
   }
 
@@ -21,42 +36,57 @@ puppeteer.launch().then(async browser => {
     await page.goto('http://es6.ruanyifeng.com/#README');
     await page.waitForSelector('#sidebar ol li a');
     links = await page.evaluate(() => {
-      return [...document.querySelectorAll('#sidebar ol li a')].map(a => ({
-        href: a.href.trim(),
-        name: a.text
-      }));
+      return [...document.querySelectorAll('#sidebar ol li a')].map(
+        (a, index) => ({
+          href: a.href.trim(),
+          name: `${index}.${a.text}`
+        })
+      );
     });
-    console.log(`api列表抓取成功, 长度：${links.length}`);
+    info(`api列表抓取成功, 长度：${links.length}...`);
     await fs.mkdirs('data/es6-pdf');
-    // await page.pdf({path: `./data/es6-pdf/${links[0].name}.pdf`});
     await fs.writeFile('./data/es6-pdf/links.json', JSON.stringify(links));
     await page.close();
-  } else {
-    links = JSON.parse(links);
-    console.log(`api列表长度：${links.length}`);
   }
-  // console.log(links.length);
-  // links = R.slice(23, Infinity)(links)
+
+  await fs.remove('./data/es6-pdf/pdf');
+  await fs.mkdirs('./data/es6-pdf/pdf');
+
+  links = R.slice(0, Infinity)(links);
+
+  const perChuck = 12;
+  const chuckedLinks = R.splitEvery(perChuck)(links);
+
+  info(`总共分成${chuckedLinks.length}个chuck, 每个chuck有${perChuck}个记录。共${links.length}个记录。`);
 
   // 打开n个页面
-  const pages = await Promise.all(R.map(() => browser.newPage())(links));
+  await new Promise(async resolve => {
+    for (let i = 0; i < chuckedLinks.length; i++) {
+      const chuckedLink = chuckedLinks[i];
+      info(`chunk:${i}开始处理...`);
+      
+      const pages = await Promise.all(
+        R.map(() => browser.newPage())(chuckedLink)
+      );
+      // 跳转n个链接
+      await Promise.all(
+        R.map(p => p[0].goto(p[1].href))(
+          R.zip(pages, chuckedLink)
+        )
+      );
+      
+      await Promise.all(
+        R.map(p =>
+          p[0].pdf({ path: `./data/es6-pdf/pdf/${p[1].name}.pdf` })
+        )(R.zip(pages, chuckedLink))
+      );
 
-  // 跳转n个链接
-  const gotoPages = await Promise.all(
-    R.map(p => p[0].goto(p[1].href, { timeout: 0 }))(R.zip(pages, links))
-  );
-
-  // 在每个页面搞一些事情
-  await fs.remove('./data/es6-pdf/pdf');
-  await timeout(1000);
-  await fs.mkdirs('./data/es6-pdf/pdf');
-  console.log('开始打印pdf...');
-  await Promise.all(
-    R.map(p => p[0].pdf({ path: `./data/es6-pdf/pdf/${p[2]}.${p[1].name}.pdf` }))(
-      R.zip(pages, links, R.range(0, R.length(links)))
-    )
-  );
-  console.log('pdf 下载成功');
-
+      R.forEach(l => info(`${l.name}.pdf 保存成功`))(chuckedLink)
+      if (i === chuckedLinks.length - 1) {
+        resolve();
+      }
+    }
+  });
+  info(`处理结束，总耗时: ${moment().diff(moment(startTime), 'seconds', true)} 秒`);
   await browser.close();
 });
