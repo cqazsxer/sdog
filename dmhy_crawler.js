@@ -107,7 +107,7 @@ puppeteer.launch({ headless: true }).then(async browser => {
     const comicsByDay = comicsByDays[i];
 
     let links = R.prop('con')(comicsByDay); // 动漫数
-    links = links.slice(0, 1); // 只取两个
+    // links = links.slice(0, 2); // 只取两个
     const name = '动漫';
     const perChuck = 2;
     const chuckedLinksArr = R.splitEvery(perChuck)(links);
