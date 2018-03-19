@@ -17,13 +17,13 @@ class Tools {
     return moment().diff(moment(m), 'days', true) > long;
   }
   static error(str) {
-    return log(chalk.green('[Error]: ' + str));
+    return log(chalk.green('[Error]: ') + str);
   }
   static info(str) {
-    return log(chalk.green('[Info]: ' + str));
+    return log(chalk.green('[Info]: ') + str);
   }
   static warning(str) {
-    return log(chalk.keyword('orange')('[Warning]: ' + str));
+    return log(chalk.keyword('orange')('[Warning]: ') + str);
   }
   static end(str) {
     return log(chalk`
@@ -54,6 +54,23 @@ class Tools {
         }
       }
     });
+  }
+  /**
+   * 检查文件创建日期是否超过指定时间
+   *
+   * @param {any} path 检查的文件路径
+   * @param {any} daycount 指定时长
+   * @returns
+   */
+  static async isFileAheadDays(path, daycount) {
+    const { ctime } = await fs.statSync(path);
+    if (!isAheadDays(ctime, daycount)) {
+      info(`数据${path}未超时。`);
+      return false;
+    } else {
+      info(`数据${path} 超过${daycount}天未更新, 重新抓取中...`);
+      return true;
+    }
   }
 }
 
