@@ -67,72 +67,152 @@ const getCategories = async browser => {
 };
 /**
  * 获取某页数据promise
- * 
+ *
  * @param {any} startPage 第n页
  */
 const getPromise = (tags, startPage) =>
   R.compose(
     axios.get,
     encodeURI,
-    R.concat(`new_search_subjects?sort=T&range=0,10&tags=${tags.join(',')}&start=`),
+    R.concat(
+      `new_search_subjects?sort=T&range=0,10&tags=${tags.join(',')}&start=`
+    ),
     R.toString,
     R.multiply(20),
     R.add(startPage)
   );
 /**
  * 获取某页的数量
- * 
- * @param {any} tags 
- * @param {any} count 
- * @returns 
+ *
+ * @param {any} tags
+ * @param {any} count
+ * @returns
  */
-const getSpecificCategoryMoiveSinglePageItemsQuantity = async (tags, startPage) => {
-  const localPageItemsLength = (await getPromise(tags, startPage)(0)).data.data.length;
-  info(`第${startPage}页有${localPageItemsLength}条数据`);
+const getSpecificCategoryMoiveSinglePageItemsQuantity = async (
+  tags,
+  startPage
+) => {
+  const localPageItemsLength = (await getPromise(tags, startPage)(0)).data.data
+    .length;
+  // info(`第${startPage}页有${localPageItemsLength}条数据`);
   return localPageItemsLength;
-}
+};
 
 /**
  * 二分递归算总页数
- * 
- * @param {any} tags 
+ *
+ * @param {any} tags
  */
-const getSpecificCategoryMoivePageQuantity = async (tags, targetPage, targetPage1, targetPage2) => {
-  const pageitemcount = await getSpecificCategoryMoiveSinglePageItemsQuantity(tags, targetPage);
-  console.log('pageitemcount', pageitemcount);
-  if (pageitemcount > 0 && pageitemcount < 20) {
-    // 当前页有数据!
-      return targetPage;
-  } else {
-    console.log('.......');
-    const lastitemcount1 = await getSpecificCategoryMoiveSinglePageItemsQuantity(tags, targetPage1);
-    const lastitemcount2 = await getSpecificCategoryMoiveSinglePageItemsQuantity(tags, targetPage2);
-    console.log('lastitemcount1', lastitemcount1);
-    console.log('lastitemcount2', lastitemcount2);
-    let newTargetPage;
-    if (pageitemcount === 0 && lastitemcount1 === 0)  {
-      newTargetPage = parseInt(targetPage / 2);
-    }
-    if (pageitemcount === 0 && lastitemcount1 === 20) {
-      console.log('???????????');
-      newTargetPage = parseInt((targetPage + targetPage1) / 2);
-    }
-    if (pageitemcount === 20 && lastitemcount1 === 0) {
-      newTargetPage = parseInt((targetPage + targetPage1) / 2);
-    }
-    if (pageitemcount === 20 && lastitemcount1 === 20) {
-      newTargetPage = parseInt((targetPage + targetPage2) / 2);
-    }
-    return await getSpecificCategoryMoivePageQuantity(tags, newTargetPage, targetPage, targetPage1);
-    
+const getSpecificCategoryMoivePageQuantity = async (
+  tags,
+  targetPage,
+  lasPage1,
+  lasPage2
+) => {
+  const pageitemcount = await getSpecificCategoryMoiveSinglePageItemsQuantity(
+    tags,
+    targetPage
+  );
+  const pageitemcount1 = await getSpecificCategoryMoiveSinglePageItemsQuantity(
+    tags,
+    lasPage1
+  );
+  const pageitemcount2 = await getSpecificCategoryMoiveSinglePageItemsQuantity(
+    tags,
+    lasPage2
+  );
+  console.log(
+    '当前页面',
+    targetPage,
+    lasPage1,
+    lasPage2,
+    pageitemcount,
+    pageitemcount1,
+    pageitemcount2
+  );
 
+  if (pageitemcount < 20 && pageitemcount > 0) {
+    // 当前是最后有数据!
+    return targetPage;
+  } else {
+    if (pageitemcount === 0 && pageitemcount1 === 20 && pageitemcount2 === 20) {
+      return await getSpecificCategoryMoivePageQuantity(
+        tags,
+        parseInt((targetPage - lasPage2) / 2),
+        targetPage,
+        lasPage1
+      );
+    }
+    if (pageitemcount === 0 && pageitemcount1 === 0 && pageitemcount2 === 20) {
+      return await getSpecificCategoryMoivePageQuantity(
+        tags,
+        parseInt((targetPage - lasPage2) / 2),
+        targetPage,
+        lasPage2
+      );
+    }
+    // zzz
+    if (pageitemcount === 0 && pageitemcount1 === 0 && pageitemcount2 === 0) {
+      return await getSpecificCategoryMoivePageQuantity(
+        tags,
+        parseInt((targetPage - lasPage2) / 2),
+        targetPage,
+        lasPage1
+      );
+    }
+    if (pageitemcount === 20 && pageitemcount1 === 0 && pageitemcount2 === 0) {
+      return await getSpecificCategoryMoivePageQuantity(
+        tags,
+        parseInt((targetPage + lasPage1) / 2),
+        targetPage,
+        lasPage2
+      );
+    }
+    if (pageitemcount === 0 && pageitemcount1 === 20 && pageitemcount2 === 0) {
+      return await getSpecificCategoryMoivePageQuantity(
+        tags,
+        parseInt((targetPage + lasPage1) / 2),
+        targetPage,
+        lasPage1
+      );
+    }
+    if (pageitemcount === 20 && pageitemcount1 === 20 && pageitemcount2 === 0) {
+      return await getSpecificCategoryMoivePageQuantity(
+        tags,
+        parseInt((targetPage + lasPage2) / 2),
+        targetPage,
+        lasPage2
+      );
+    }
+    if (pageitemcount === 0 && pageitemcount1 === 20 && pageitemcount2 === 0) {
+      return await getSpecificCategoryMoivePageQuantity(
+        tags,
+        parseInt((targetPage + lasPage1) / 2),
+        targetPage,
+        lasPage1
+      );
+    }
+    if (pageitemcount === 20 && pageitemcount1 === 0 && pageitemcount2 === 20) {
+      return await getSpecificCategoryMoivePageQuantity(
+        tags,
+        parseInt((targetPage + lasPage1) / 2),
+        targetPage,
+        lasPage1
+      );
+    }
+    // if (pageitemcount ===20 && pageitemcount1 === 20 && pageitemcount2 === 0) {
+    //   return await getSpecificCategoryMoivePageQuantity(
+    //     tags,
+    //     parseInt((targetPage + lasPage1) / 2),
+    //     targetPage,
+    //     pageitemcount1
+    //   );
+    // }
     // if (targetPage < lastTargetPage) {
-      
+
     // }
     // const newTargetPage = (targetPage + lastTargetPage) % 2 === 1 ? (targetPage + lastTargetPage + 1) / 2 :(targetPage + lastTargetPage) / 2;
-    
   }
-
 };
 
 /**
@@ -161,23 +241,22 @@ const getSpecificCategoryMoive = async (tags, startPage, pageCount) => {
     )} 秒, ${startPage}到${startPage + pageCount}页， 总条数${results.length}条`
   );
 };
-puppeteer
-  .launch({ headless: true })
-  .then(async browser => {
-    try {
-      await fs.mkdirs('data/douban');
-      // await getCategories(browser);
-    } catch (error) {
-      console.log('error', error);
-    }
-  })
-  .then(async () => {
-    await getSpecificCategoryMoive(['动画', '日本'], 288, 1);
-  })
-  .then(async () => {
-    const all = await getSpecificCategoryMoivePageQuantity(['电影'], 4096, 1,4097);
+puppeteer.launch({ headless: true }).then(async browser => {
+  try {
+    await fs.mkdirs('data/douban');
+    // await getCategories(browser);
+    await getSpecificCategoryMoive(['动画', '日本'], 0, 1);
+    const all = await getSpecificCategoryMoivePageQuantity(
+      ['动画'],
+      4096,
+      0,
+      0
+    );
     console.log(all);
-  });
+  } catch (error) {
+    await browser.close();
+  }
+});
 
 const Koa = require('koa');
 const app = new Koa();
