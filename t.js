@@ -33,3 +33,5 @@ const a = R.compose(chain(print), map(add(3)), IO.of)(10);
 console.log(a);
 console.log(a._v());
 // console.log(a._v()._v());
+
+//test

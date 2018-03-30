@@ -241,7 +241,9 @@ const getSpecificCategoryMoive = async (tags, startPage, pageCount) => {
     )} 秒, ${startPage}到${startPage + pageCount}页， 总条数${results.length}条`
   );
 };
-puppeteer.launch({ headless: true }).then(async browser => {
+puppeteer.launch({
+  headless: true
+}).then(async browser => {
   try {
     await fs.mkdirs('data/douban');
     // await getCategories(browser);
