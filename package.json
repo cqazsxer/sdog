@@ -16,7 +16,7 @@
     "lodash": "^4.17.5",
     "moment": "^2.20.1",
     "mz": "^2.7.0",
-    "puppeteer": "^1.0.0",
+    "puppeteer": "^1.2.0",
     "ramda": "^0.25.0"
   },
   "nodemonConfig": {
